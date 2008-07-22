@@ -1,0 +1,107 @@
+2008-07-02  Li Yuan  <li.yuan@sun.com>
+
+	* gailoptionmenu.c: (gail_option_menu_real_initialize),
+	(gail_option_menu_changed):
+	Bug #541167. Emit "object:property-change:accessible-name" when
+	GailOptionMenui's name changes.
+
+2008-06-18  Michael Natterer  <mitch@imendio.com>
+
+	* gailimage.c (gail_image_get_image_size)
+	* gailpixmap.c (gail_pixmap_get_image_size):
+	s/gdk_window_get_size/gdk_drawable_get_size/
+
+2008-06-17  Michael Natterer  <mitch@imendio.com>
+
+	* gail.c
+	* gailtoplevel.c: s/gtk_type_class/g_type_class_ref/
+
+	* Makefile.am: add GDK_DISABLE_DEPRECATED to CPPFLAGS.
+
+2008-06-10  Li Yuan  <li.yuan@sun.com>
+
+	* gailtextview.c: (gail_text_view_set_caret_offset):
+	Automatically scroll text caret to make it visible, when AT
+	sets its offset.
+
+2008-06-06  Li Yuan  <li.yuan@sun.com>
+
+	* gail/gaillabel.c: (gail_label_real_notify_gtk):
+	Before emitting "text_caret_moved", change the cursor to the
+	changed bound. Bug #536927.
+
+2008-05-30  Michael Natterer  <mitch@imendio.com>
+
+	* gailcellparent.h
+	* gailfactory.h
+	* tests/testnotebook.c
+	* tests/testtext.c
+	* tests/testtoplevel.c
+	* tests/testvalues.c: include <atk/atk.h> instead of individual
+	files from ATK.
+
+2008-05-28  Michael Natterer  <mitch@imendio.com>
+
+	* gailwidget.h: include <gtk/gtk.h> instead of
+	<gtk/gtkaccessible.h>
+
+	* *.h: don't include anyting from gtk since all headers indirectly
+	include gailwidget.h.
+
+	* gailcellparent.c: include <gtk/gtk.h> instead of individual
+	files.
+
+	* gailcheckmenuitem.c
+	* gailmenu.c
+	* gailtreeview.c: remove all gtk includes since it's always
+	included by including any gail header.
+
+2008-05-26  Michael Natterer  <mitch@imendio.com>
+
+	* libgail-util/gailmisc.h
+	* libgail-util/gailtextutil.h: use G_BEGIN/END_DECLS.
+
+2008-05-24  Matthias Clasen  <mclasen@redhat.com>
+
+	Bug 504706 – wrong deallocator used for GError in gailtextview.c
+
+	* gailtextview.c: Don't use g_free on a GError.
+
+2008-04-02  Li Yuan  <li.yuan@.sun.com>
+
+	* gailbutton.c: (idle_do_action):
+	Patch from Alejandro Piñeiro Iglesias <apinheiro@igalia.com>.
+	Bug #496167. Synthesize press and release GdkEvent in button's click
+	action.
+
+2008-03-31  Li Yuan  <li.yuan@sun.com>
+
+	* gailbutton.c: (gail_button_ref_state_set):
+	Bug #433324. add/remove selectable state depand on if the button can
+	be focused.
+
+2008-03-20  Li Yuan  <li.yuan@sun.com>
+
+	* gailcell.c: (gail_cell_object_finalize):
+	Bug #498079. Free cell's action info before free the action_list.
+
+2008-01-11  Li Yuan  <li.yuan@sun.com>
+
+	* gailtreeview.c: (gail_tree_view_real_initialize), (focus_in),
+	(focus_out):
+	Bug #508255. Remove ATK_STATE_FOCUSED state when focus jumps out.
+	Emit "active-descendant-changed" and add ATK_STATE_FOCUSED state when
+	focus comes in again.
+
+2008-01-11  Li Yuan  <li.yuan@sun.com>
+
+	* gailtreeview.c: (gail_tree_view_ref_child),
+	(idle_cursor_changed):
+	Bug #497218. Emit "active-descendant-changed" when focus first comes
+	into treeview. Add/remove ATK_STATE_FOCUSED when cursor changes.
+
+2008-01-11  Li Yuan  <li.yuan@sun.com>
+
+	* gailtreeview.c: (gail_tree_view_get_n_rows):
+	Bug #508715. Should use gtk_tree_path_free to free a GtkTreePath.
+
