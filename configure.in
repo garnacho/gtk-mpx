@@ -228,7 +228,7 @@ AC_ARG_ENABLE(xkb,
 AC_ARG_ENABLE(xinerama,
               [AC_HELP_STRING([--enable-xinerama],
 	                      [support xinerama extension if available [default=yes]])],,
-              [enable_xinerama="no"])
+              [enable_xinerama="yes"])
 AC_ARG_ENABLE(rebuilds,
               [AC_HELP_STRING([--disable-rebuilds],
                               [disable all source autogeneration rules])],,
@@ -1044,8 +1044,10 @@ int
 main (int argc, char **argv)
 {
   char *content_type;
+  char *image_png;
   content_type = g_content_type_guess (NULL, data, data_size, NULL);  
-  return strcmp (content_type, "image/png");
+  image_png = g_content_type_for_mime_type ("image/png");
+  return !!strcmp (content_type, image_png);
 }]])],
   [gio_can_sniff=yes
    AC_DEFINE(GDK_PIXBUF_USE_GIO_MIME, 1, [Define if gio can sniff image data])],
@@ -2046,6 +2048,7 @@ gdk/win32/rc/Makefile
 gdk/win32/rc/gdk.rc
 gdk/quartz/Makefile
 gdk/directfb/Makefile
+gdk/tests/Makefile
 gtk/Makefile
 gtk/makefile.msc
 gtk/gtkversion.h
