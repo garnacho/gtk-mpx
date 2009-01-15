@@ -2542,6 +2542,17 @@ gdk_display_warp_pointer (GdkDisplay *display,
   SetCursorPos (x - _gdk_offset_x, y - _gdk_offset_y);
 }
 
+void
+gdk_display_warp_device (GdkDisplay *display,
+                         GdkScreen  *screen,
+                         GdkDevice  *device,
+                         gint        x,
+                         gint        y)
+{
+  /* device is ignored */
+  gdk_display_warp_pointer (display, screen, x, y);
+}
+
 GdkWindow*
 _gdk_windowing_window_at_pointer (GdkDisplay *display,
 				  gint       *win_x,

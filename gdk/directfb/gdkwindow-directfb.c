@@ -2932,6 +2932,16 @@ gdk_display_warp_pointer (GdkDisplay *display,
 }
 
 void
+gdk_display_warp_device (GdkDisplay *display,
+                         GdkScreen  *screen,
+                         GdkDevice  *device,
+                         gint        x,
+                         gint        y)
+{
+  g_warning ("gdk_display_warp_device() not implemented.\n");
+}
+
+void
 gdk_window_set_urgency_hint (GdkWindow *window,
                              gboolean   urgent)
 {

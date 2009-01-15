@@ -2105,6 +2105,17 @@ gdk_display_warp_pointer (GdkDisplay *display,
   CGDisplayMoveCursorToPoint (CGMainDisplayID (), CGPointMake (x, y));
 }
 
+void
+gdk_display_warp_device (GdkDisplay *display,
+                         GdkScreen  *screen,
+                         GdkDevice  *device,
+                         gint        x,
+                         gint        y)
+{
+  /* device is ignored */
+  gdk_display_warp_pointer (display, screen, x, y);
+}
+
 /* Returns coordinates relative to the found window. */
 GdkWindow *
 _gdk_windowing_window_at_pointer (GdkDisplay *display,
