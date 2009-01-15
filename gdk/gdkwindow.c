@@ -3876,7 +3876,22 @@ gdk_window_set_cursor (GdkWindow *window,
 
   private = (GdkWindowObject *) window;
 
-  GDK_WINDOW_IMPL_GET_IFACE (private->impl)->set_cursor (window, cursor);
+  GDK_WINDOW_IMPL_GET_IFACE (private->impl)->set_cursor (window, NULL, cursor);
+}
+
+void
+gdk_window_set_device_cursor (GdkWindow *window,
+                              GdkDevice *device,
+                              GdkCursor *cursor)
+{
+  GdkWindowObject *private;
+
+  g_return_if_fail (GDK_IS_WINDOW (window));
+  g_return_if_fail (GDK_IS_DEVICE (device));
+
+  private = (GdkWindowObject *) window;
+
+  GDK_WINDOW_IMPL_GET_IFACE (private->impl)->set_cursor (window, device, cursor);
 }
 
 /**

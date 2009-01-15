@@ -149,6 +149,11 @@ gdk_window_impl_x11_init (GdkWindowImplX11 *impl)
   impl->width = 1;
   impl->height = 1;
   impl->toplevel_window_type = -1;
+
+  impl->device_cursor = g_hash_table_new_full (g_direct_hash,
+                                               g_direct_equal,
+                                               (GDestroyNotify) g_object_unref,
+                                               (GDestroyNotify) gdk_cursor_unref);
 }
 
 GdkToplevelX11 *
@@ -900,7 +905,8 @@ _gdk_window_new (GdkWindow     *parent,
 
   g_object_ref (window);
   _gdk_xid_table_insert (screen_x11->display, &draw_impl->xid, window);
-  
+
+  /* FIXME: should handle existing devices, and listen for changes in available devices */
   gdk_window_set_cursor (window, ((attributes_mask & GDK_WA_CURSOR) ?
 				  (attributes->cursor) :
 				  NULL));
@@ -2882,6 +2888,7 @@ gdk_window_x11_set_back_pixmap (GdkWindow *window,
 
 static void
 gdk_window_x11_set_cursor (GdkWindow *window,
+                           GdkDevice *device,
                            GdkCursor *cursor)
 {
   GdkWindowObject *private;
@@ -2893,11 +2900,16 @@ gdk_window_x11_set_cursor (GdkWindow *window,
   impl = GDK_WINDOW_IMPL_X11 (private->impl);
   cursor_private = (GdkCursorPrivate*) cursor;
 
-  if (impl->cursor)
-    {
-      gdk_cursor_unref (impl->cursor);
-      impl->cursor = NULL;
-    }
+#ifdef XINPUT_2
+  if (device)
+    g_hash_table_remove (impl->device_cursor, device);
+  else
+#endif
+    if (impl->cursor)
+      {
+        gdk_cursor_unref (impl->cursor);
+        impl->cursor = NULL;
+      }
 
   if (!cursor)
     xcursor = None;
@@ -2909,12 +2921,34 @@ gdk_window_x11_set_cursor (GdkWindow *window,
   
   if (!GDK_WINDOW_DESTROYED (window))
     {
-      XDefineCursor (GDK_WINDOW_XDISPLAY (window),
-		     GDK_WINDOW_XID (window),
-		     xcursor);
-      
+#ifdef XINPUT_2
+      GdkDevicePrivate *gdkdev;
+
+      if (device)
+        {
+          gdkdev = (GdkDevicePrivate *) device;
+          XDefineDeviceCursor (GDK_WINDOW_XDISPLAY (window),
+                               gdkdev->xdevice,
+                               GDK_WINDOW_XID (window),
+                               xcursor);
+        }
+      else
+#endif
+        XDefineCursor (GDK_WINDOW_XDISPLAY (window),
+                       GDK_WINDOW_XID (window),
+                       xcursor);
+
       if (cursor)
-	impl->cursor = gdk_cursor_ref (cursor);
+        {
+#ifdef XINPUT_2
+          if (device)
+            g_hash_table_insert (impl->device_cursor,
+                                 g_object_ref (device),
+                                 gdk_cursor_ref (cursor));
+          else
+#endif
+            impl->cursor = gdk_cursor_ref (cursor);
+        }
     }
 }
 

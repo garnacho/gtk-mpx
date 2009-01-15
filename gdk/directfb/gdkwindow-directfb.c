@@ -1974,6 +1974,7 @@ gdk_window_set_back_pixmap (GdkWindow *window,
 
 void
 gdk_window_set_cursor (GdkWindow *window,
+                       GdkDevice *device,
                        GdkCursor *cursor)
 {
   GdkWindowImplDirectFB *impl;

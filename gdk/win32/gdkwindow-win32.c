@@ -2174,6 +2174,7 @@ gdk_win32_window_set_back_pixmap (GdkWindow *window,
 
 static void
 gdk_win32_window_set_cursor (GdkWindow *window,
+                             GdkDevice *device,
 			     GdkCursor *cursor)
 {
   GdkWindowImplWin32 *impl;

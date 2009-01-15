@@ -80,6 +80,7 @@ struct _GdkWindowImplX11
   GdkXPositionInfo position_info;
   GdkToplevelX11 *toplevel;	/* Toplevel-specific information */
   GdkCursor *cursor;
+  GHashTable *device_cursor;
   gint8 toplevel_window_type;
   guint override_redirect : 1;
   guint use_synchronized_configure : 1;

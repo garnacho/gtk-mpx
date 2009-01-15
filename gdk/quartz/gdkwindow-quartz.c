@@ -1821,6 +1821,7 @@ gdk_window_quartz_set_back_pixmap (GdkWindow *window,
 
 static void
 gdk_window_quartz_set_cursor (GdkWindow *window,
+                              GdkDevice *device,
                               GdkCursor *cursor)
 {
   GdkWindowImplQuartz *impl;
