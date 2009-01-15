@@ -83,7 +83,8 @@ struct _GdkDevicePrivate
 
   int buttonpress_type, buttonrelease_type, keypress_type,
       keyrelease_type, motionnotify_type, proximityin_type, 
-      proximityout_type, changenotify_type;
+      proximityout_type, changenotify_type, enternotify_type,
+      leavenotify_type;
 
   /* true if we need to select a different set of events, but
      can't because this is the core pointer */
@@ -149,6 +150,7 @@ void             _gdk_input_enter_event      (XCrossingEvent   *xevent,
 					      GdkWindow        *window);
 gboolean         _gdk_input_other_event      (GdkEvent         *event,
 					      XEvent           *xevent,
+                                              GdkDisplay       *display,
 					      GdkWindow        *window);
 gint             _gdk_input_grab_pointer     (GdkWindow        *window,
 					      gint              owner_events,
@@ -166,7 +168,7 @@ gboolean         _gdk_device_get_history     (GdkDevice         *device,
 
 #ifndef XINPUT_NONE
 
-#define GDK_MAX_DEVICE_CLASSES 13
+#define GDK_MAX_DEVICE_CLASSES 15
 
 gint               _gdk_input_common_init               (GdkDisplay	  *display,
 							 gint              include_core);
@@ -187,6 +189,7 @@ void               _gdk_input_common_select_events      (GdkWindow        *windo
 							 GdkDevicePrivate *gdkdev);
 gint               _gdk_input_common_other_event        (GdkEvent         *event,
 							 XEvent           *xevent,
+                                                         GdkDisplay       *display,
 							 GdkInputWindow   *input_window,
 							 GdkDevicePrivate *gdkdev);
 

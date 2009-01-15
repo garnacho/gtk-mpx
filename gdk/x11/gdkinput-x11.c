@@ -250,6 +250,8 @@ gdk_input_device_new (GdkDisplay  *display,
   gdkdev->proximityin_type = 0;
   gdkdev->proximityout_type = 0;
   gdkdev->changenotify_type = 0;
+  gdkdev->enternotify_type = 0;
+  gdkdev->leavenotify_type = 0;
 
   return gdkdev;
 
@@ -359,6 +361,21 @@ _gdk_input_common_find_events(GdkWindow *window,
 	  classes[i++] = class;
     }
 
+#ifdef XINPUT_2
+  if (mask & GDK_ENTER_NOTIFY_MASK)
+    {
+      DeviceEnterNotify (gdkdev->xdevice, gdkdev->enternotify_type, class);
+      if (class != 0)
+        classes[i++] = class;
+    }
+  if (mask & GDK_LEAVE_NOTIFY_MASK)
+    {
+      DeviceLeaveNotify (gdkdev->xdevice, gdkdev->leavenotify_type, class);
+      if (class != 0)
+        classes[i++] = class;
+    }
+#endif
+
   *num_classes = i;
 }
 
@@ -401,7 +418,7 @@ _gdk_input_common_init (GdkDisplay *display,
 #endif
 
       gdk_x11_register_standard_event_type (display,
-					    event_base, 15 /* Number of events */);
+					    event_base, 19 /* Number of events */);
 
       devices = XListInputDevices(display_x11->xdisplay, &num_devices);
   
@@ -554,6 +571,7 @@ gdk_input_translate_state(guint state, guint device_state)
 gboolean
 _gdk_input_common_other_event (GdkEvent         *event,
 			       XEvent           *xevent,
+                               GdkDisplay       *display,
 			       GdkInputWindow   *input_window,
 			       GdkDevicePrivate *gdkdev)
 {
@@ -754,6 +772,82 @@ _gdk_input_common_other_event (GdkEvent         *event,
                                       gdk_event_get_time (event));
       return TRUE;
   }
+
+#ifdef XINPUT_2
+  if (xevent->type == gdkdev->enternotify_type ||
+      xevent->type == gdkdev->leavenotify_type)
+    {
+      XDeviceCrossingEvent *xdce = (XDeviceCrossingEvent *) xevent;
+
+      event->crossing.type =
+        (xdce->type == gdkdev->enternotify_type) ? GDK_ENTER_NOTIFY : GDK_LEAVE_NOTIFY;
+      event->crossing.window = input_window->window;
+
+      if (xdce->subwindow != None)
+        event->crossing.subwindow = gdk_window_lookup_for_display (display, xdce->subwindow);
+      else
+	event->crossing.subwindow = NULL;
+
+      event->crossing.time = xdce->time;
+      event->crossing.x = xdce->x;
+      event->crossing.y = xdce->y;
+      event->crossing.x_root = xdce->x_root;
+      event->crossing.y_root = xdce->y_root;
+
+      /* FIXME: Code below is mostly copied from gdkevents-x11.c */
+
+      /* Translate the crossing mode into Gdk terms.
+       */
+      switch (xdce->mode)
+	{
+	case NotifyNormal:
+	  event->crossing.mode = GDK_CROSSING_NORMAL;
+	  break;
+	case NotifyGrab:
+	  event->crossing.mode = GDK_CROSSING_GRAB;
+	  break;
+	case NotifyUngrab:
+	  event->crossing.mode = GDK_CROSSING_UNGRAB;
+	  break;
+	};
+
+      /* Translate the crossing detail into Gdk terms.
+       */
+      switch (xdce->detail)
+	{
+	case NotifyInferior:
+	  event->crossing.detail = GDK_NOTIFY_INFERIOR;
+	  break;
+	case NotifyAncestor:
+	  event->crossing.detail = GDK_NOTIFY_ANCESTOR;
+	  break;
+	case NotifyVirtual:
+	  event->crossing.detail = GDK_NOTIFY_VIRTUAL;
+	  break;
+	case NotifyNonlinear:
+	  event->crossing.detail = GDK_NOTIFY_NONLINEAR;
+	  break;
+	case NotifyNonlinearVirtual:
+	  event->crossing.detail = GDK_NOTIFY_NONLINEAR_VIRTUAL;
+	  break;
+	default:
+	  event->crossing.detail = GDK_NOTIFY_UNKNOWN;
+	  break;
+	}
+
+      event->crossing.focus = xdce->focus;
+      event->crossing.state = xdce->state;
+      event->crossing.device = &gdkdev->info;
+
+      /* Update the timestamp of the latest user interaction, if the event has
+       * a valid timestamp.
+       */
+      if (gdk_event_get_time (event) != GDK_CURRENT_TIME)
+        gdk_x11_window_set_user_time (gdk_window_get_toplevel (input_window->window),
+                                      gdk_event_get_time (event));
+      return TRUE;
+    }
+#endif
 
   return FALSE;			/* wasn't one of our event types */
 }

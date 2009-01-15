@@ -1263,7 +1263,15 @@ gdk_event_translate (GdkDisplay *display,
           return_val = FALSE;
           break;
         }
-      
+
+#ifdef XINPUT_2
+      if (window_private->extension_events != 0)
+        {
+	  return_val = FALSE;
+	  break;
+	}
+#endif
+
       if (!set_screen_from_root (display, event, xevent->xbutton.root))
 	{
 	  return_val = FALSE;
@@ -1308,6 +1316,7 @@ gdk_event_translate (GdkDisplay *display,
       event->crossing.y = xevent->xcrossing.y + yoffset;
       event->crossing.x_root = xevent->xcrossing.x_root;
       event->crossing.y_root = xevent->xcrossing.y_root;
+      event->crossing.device = display->core_pointer;
       
       /* Translate the crossing mode into Gdk terms.
        */
@@ -1365,6 +1374,14 @@ gdk_event_translate (GdkDisplay *display,
           break;
         }
 
+#ifdef XINPUT_2
+      if (window_private->extension_events != 0)
+	{
+	  return_val = FALSE;
+	  break;
+	}
+#endif
+
       if (!set_screen_from_root (display, event, xevent->xbutton.root))
 	{
 	  return_val = FALSE;
@@ -1403,6 +1420,7 @@ gdk_event_translate (GdkDisplay *display,
       event->crossing.y = xevent->xcrossing.y + yoffset;
       event->crossing.x_root = xevent->xcrossing.x_root;
       event->crossing.y_root = xevent->xcrossing.y_root;
+      event->crossing.device = display->core_pointer;
       
       /* Translate the crossing mode into Gdk terms.
        */
@@ -2149,7 +2167,7 @@ gdk_event_translate (GdkDisplay *display,
 	  if (window_private &&
 	      !GDK_WINDOW_DESTROYED (window_private) &&
 	      (window_private->extension_events != 0))
-	    return_val = _gdk_input_other_event(event, xevent, window);
+	    return_val = _gdk_input_other_event(event, xevent, display, window);
 	  else
 	    return_val = FALSE;
 	  

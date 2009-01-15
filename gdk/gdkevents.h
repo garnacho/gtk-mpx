@@ -368,6 +368,7 @@ struct _GdkEventCrossing
   GdkNotifyType detail;
   gboolean focus;
   guint state;
+  GdkDevice *device;
 };
 
 struct _GdkEventFocus

@@ -180,10 +180,11 @@ _gdk_input_enter_event (XCrossingEvent *xevent,
   input_window->root_y = root_y;
 }
 
-gboolean 
-_gdk_input_other_event (GdkEvent *event, 
-			XEvent *xevent, 
-			GdkWindow *window)
+gboolean
+_gdk_input_other_event (GdkEvent   *event,
+			XEvent     *xevent,
+                        GdkDisplay *display,
+			GdkWindow  *window)
 {
   GdkInputWindow *input_window;
   
@@ -213,7 +214,7 @@ _gdk_input_other_event (GdkEvent *event,
   if (!display_impl->input_ignore_core)
     gdk_input_check_proximity(GDK_WINDOW_DISPLAY (window));
 
-  return_val = _gdk_input_common_other_event (event, xevent, 
+  return_val = _gdk_input_common_other_event (event, xevent, display,
 					      input_window, gdkdev);
 
   if (return_val && event->type == GDK_PROXIMITY_OUT &&
