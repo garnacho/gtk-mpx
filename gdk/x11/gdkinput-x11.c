@@ -577,11 +577,24 @@ _gdk_input_common_other_event (GdkEvent         *event,
       event->button.time = xdbe->time;
 
       event->button.axes = g_new (gdouble, gdkdev->info.num_axes);
-      gdk_input_translate_coordinates (gdkdev,input_window, xdbe->axis_data,
-				       event->button.axes, 
-				       &event->button.x,&event->button.y);
+
+#ifndef XINPUT_2
+      gdk_input_translate_coordinates (gdkdev, input_window, xdbe->axis_data,
+                                       event->button.axes,
+                                       &event->button.x, &event->button.y);
       event->button.x_root = event->button.x + input_window->root_x;
       event->button.y_root = event->button.y + input_window->root_y;
+#else
+      gdk_input_translate_coordinates (gdkdev, input_window, xdbe->axis_data,
+                                       event->button.axes,
+                                       NULL, NULL);
+
+      event->button.x = (gdouble) xdbe->x;
+      event->button.y = (gdouble) xdbe->y;
+      event->button.x_root = (gdouble) xdbe->x_root;
+      event->button.y_root = (gdouble) xdbe->y_root;
+#endif
+
       event->button.state = gdk_input_translate_state(xdbe->state,xdbe->device_state);
       event->button.button = xdbe->button;
 
@@ -679,11 +692,23 @@ _gdk_input_common_other_event (GdkEvent         *event,
       event->motion.device = &gdkdev->info;
       
       event->motion.axes = g_new (gdouble, gdkdev->info.num_axes);
-      gdk_input_translate_coordinates(gdkdev,input_window,xdme->axis_data,
-				      event->motion.axes,
-				      &event->motion.x,&event->motion.y);
+
+#ifndef XINPUT_2
+      gdk_input_translate_coordinates (gdkdev, input_window, xdme->axis_data,
+                                       event->motion.axes,
+                                       &event->motion.x, &event->motion.y);
       event->motion.x_root = event->motion.x + input_window->root_x;
       event->motion.y_root = event->motion.y + input_window->root_y;
+#else
+      gdk_input_translate_coordinates (gdkdev, input_window, xdme->axis_data,
+                                       event->motion.axes,
+                                       NULL, NULL);
+
+      event->motion.x = (gdouble) xdme->x;
+      event->motion.y = (gdouble) xdme->y;
+      event->motion.x_root = (gdouble) xdme->x_root;
+      event->motion.y_root = (gdouble) xdme->y_root;
+#endif
 
       event->motion.type = GDK_MOTION_NOTIFY;
       event->motion.window = input_window->window;
