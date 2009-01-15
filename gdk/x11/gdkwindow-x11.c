@@ -3417,6 +3417,35 @@ gdk_display_warp_pointer (GdkDisplay *display,
   XWarpPointer (xdisplay, None, dest, 0, 0, 0, 0, x, y);  
 }
 
+void
+gdk_display_warp_device (GdkDisplay *display,
+                         GdkScreen  *screen,
+                         GdkDevice  *device,
+                         gint        x,
+                         gint        y)
+{
+#ifdef XINPUT_2
+  GdkDevicePrivate *gdkdev;
+#endif
+  Display *xdisplay;
+  Window dest;
+
+  g_return_if_fail (GDK_IS_DEVICE (device));
+
+  xdisplay = GDK_DISPLAY_XDISPLAY (display);
+  dest = GDK_WINDOW_XWINDOW (gdk_screen_get_root_window (screen));
+
+#ifdef XINPUT_2
+  if (!device)
+    device = gdk_display_get_core_pointer (display);
+
+  gdkdev = (GdkDevicePrivate *) device;
+  XWarpDevicePointer (xdisplay, gdkdev->xdevice, None, dest, 0, 0, 0, 0, x, y);
+#else
+  XWarpPointer (xdisplay, None, dest, 0, 0, 0, 0, x, y);
+#endif
+}
+
 GdkWindow*
 _gdk_windowing_window_at_pointer (GdkDisplay *display,
                                   gint       *win_x,
