@@ -114,7 +114,12 @@ gdk_input_device_new (GdkDisplay  *display,
       (fixed in 3.2A) */
    gdkdev->info.name = g_strdup ("pointer");
 
-  gdkdev->info.mode = GDK_MODE_DISABLED;
+#ifdef XINPUT_2
+  if (device->use == IsXPointer)
+    gdkdev->info.mode = GDK_MODE_SCREEN;
+  else
+#endif
+    gdkdev->info.mode = GDK_MODE_DISABLED;
 
   /* Try to figure out what kind of device this is by its name -
      could invite a very, very, long list... Lowercase name
@@ -122,7 +127,7 @@ gdk_input_device_new (GdkDisplay  *display,
 
   tmp_name = g_ascii_strdown (gdkdev->info.name, -1);
   
-  if (!strcmp (tmp_name, "pointer"))
+  if (g_str_has_suffix (tmp_name, "pointer"))
     gdkdev->info.source = GDK_SOURCE_MOUSE;
   else if (!strcmp (tmp_name, "wacom") ||
 	   !strcmp (tmp_name, "pen"))
@@ -222,8 +227,10 @@ gdk_input_device_new (GdkDisplay  *display,
       (!include_core && device->use == IsXPointer))
     goto error;
 
+#ifndef XINPUT_2
   if (device->use != IsXPointer)
     {
+#endif
       gdk_error_trap_push ();
       gdkdev->xdevice = XOpenDevice (GDK_DISPLAY_XDISPLAY (display),
 				     gdkdev->deviceid);
@@ -231,7 +238,9 @@ gdk_input_device_new (GdkDisplay  *display,
       /* return NULL if device is not ready */
       if (gdk_error_trap_pop ())
 	goto error;
+#ifndef XINPUT_2
     }
+#endif
 
   gdkdev->buttonpress_type = 0;
   gdkdev->buttonrelease_type = 0;
@@ -387,6 +396,10 @@ _gdk_input_common_init (GdkDisplay *display,
   if (XQueryExtension (display_x11->xdisplay, "XInputExtension",
 		       &ignore, &event_base, &ignore))
     {
+#ifdef XINPUT_2
+      XQueryInputVersion(display_x11->xdisplay, XI_2_Major, XI_2_Minor);
+#endif
+
       gdk_x11_register_standard_event_type (display,
 					    event_base, 15 /* Number of events */);
 
