@@ -1524,9 +1524,13 @@ if test "x$gdktarget" = "xx11"; then
   if test "x$with_xinput" = "xxfree" || test "x$with_xinput" = "xyes"; then
     AC_DEFINE(XINPUT_XFREE, 1,
               [Define to 1 if XFree XInput should be used])
-    
+
     if $PKG_CONFIG --exists xi ; then
       X_PACKAGES="$X_PACKAGES xi"
+
+      if $PKG_CONFIG --exists "xi >= 1.1.99" ; then
+        AC_DEFINE(XINPUT_2, 1, [Define to 1 if XInput 2.0 is available])
+      fi
     else
       GTK_ADD_LIB(x_extra_libs, Xi)
     fi
