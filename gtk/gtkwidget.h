@@ -78,7 +78,8 @@ typedef enum
   GTK_RECEIVES_DEFAULT = 1 << 20,
 
   GTK_DOUBLE_BUFFERED  = 1 << 21,
-  GTK_NO_SHOW_ALL      = 1 << 22
+  GTK_NO_SHOW_ALL      = 1 << 22,
+  GTK_MULTIDEVICE      = 1 << 23
 } GtkWidgetFlags;
 
 /* Kinds of widget-specific help */
@@ -620,6 +621,11 @@ GtkClipboard *gtk_widget_get_clipboard   (GtkWidget *widget,
 					  GdkAtom    selection);
 GdkPixmap *   gtk_widget_get_snapshot    (GtkWidget    *widget,
                                           GdkRectangle *clip_rect);
+
+/* Multidevice support */
+void             gtk_widget_set_support_multidevice (GtkWidget      *widget,
+                                                     gboolean        support_multidevice);
+
 
 #ifndef GTK_DISABLE_DEPRECATED
 #define gtk_widget_set_visual(widget,visual)  ((void) 0)

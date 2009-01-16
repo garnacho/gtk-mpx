@@ -10254,5 +10254,23 @@ gtk_widget_get_window (GtkWidget *widget)
   return widget->window;
 }
 
+void
+gtk_widget_set_support_multidevice (GtkWidget *widget,
+                                    gboolean   support_multidevice)
+{
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+
+  if (support_multidevice)
+    {
+      GTK_WIDGET_SET_FLAGS (widget, GTK_MULTIDEVICE);
+      gtk_widget_set_extension_events (widget, GDK_EXTENSION_EVENTS_ALL);
+    }
+  else
+    {
+      GTK_WIDGET_UNSET_FLAGS (widget, GTK_MULTIDEVICE);
+      gtk_widget_set_extension_events (widget, GDK_EXTENSION_EVENTS_NONE);
+    }
+}
+
 #define __GTK_WIDGET_C__
 #include "gtkaliasdef.c"
