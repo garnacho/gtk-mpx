@@ -37,6 +37,7 @@
 #include <gtk/gtkadjustment.h>
 #include <gtk/gtkstyle.h>
 #include <gtk/gtksettings.h>
+#include <gtk/gtkdevicegroup.h>
 #include <atk/atk.h>
 
 G_BEGIN_DECLS
@@ -625,6 +626,11 @@ GdkPixmap *   gtk_widget_get_snapshot    (GtkWidget    *widget,
 /* Multidevice support */
 void             gtk_widget_set_support_multidevice (GtkWidget      *widget,
                                                      gboolean        support_multidevice);
+GtkDeviceGroup * gtk_widget_get_group_for_device    (GtkWidget      *widget,
+                                                     GdkDevice      *device);
+GtkDeviceGroup * gtk_widget_create_device_group     (GtkWidget      *widget);
+void             gtk_widget_remove_device_group     (GtkWidget      *widget,
+                                                     GtkDeviceGroup *group);
 
 
 #ifndef GTK_DISABLE_DEPRECATED

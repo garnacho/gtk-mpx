@@ -158,6 +158,7 @@ enum {
 };
 
 typedef	struct	_GtkStateData	 GtkStateData;
+typedef struct  _GtkMultiDeviceData GtkMultiDeviceData;
 
 struct _GtkStateData
 {
@@ -165,6 +166,12 @@ struct _GtkStateData
   guint		state_restoration : 1;
   guint         parent_sensitive : 1;
   guint		use_forall : 1;
+};
+
+struct _GtkMultiDeviceData
+{
+  GList *groups;
+  GHashTable *by_dev;
 };
 
 /* --- prototypes --- */
@@ -309,6 +316,7 @@ static GQuark		quark_mnemonic_labels = 0;
 static GQuark		quark_tooltip_markup = 0;
 static GQuark		quark_has_tooltip = 0;
 static GQuark		quark_tooltip_window = 0;
+static GQuark           quark_multidevice_data = 0;
 GParamSpecPool         *_gtk_widget_child_property_pool = NULL;
 GObjectNotifyContext   *_gtk_widget_child_property_notify_context = NULL;
 
@@ -397,6 +405,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
   quark_tooltip_markup = g_quark_from_static_string ("gtk-tooltip-markup");
   quark_has_tooltip = g_quark_from_static_string ("gtk-has-tooltip");
   quark_tooltip_window = g_quark_from_static_string ("gtk-tooltip-window");
+  quark_multidevice_data = g_quark_from_static_string ("gtk-multidevice-data");
 
   style_property_spec_pool = g_param_spec_pool_new (FALSE);
   _gtk_widget_child_property_pool = g_param_spec_pool_new (TRUE);
@@ -10270,6 +10279,146 @@ gtk_widget_set_support_multidevice (GtkWidget *widget,
       GTK_WIDGET_UNSET_FLAGS (widget, GTK_MULTIDEVICE);
       gtk_widget_set_extension_events (widget, GDK_EXTENSION_EVENTS_NONE);
     }
+}
+
+static void
+device_group_device_added (GtkDeviceGroup *group,
+                           GdkDevice      *device,
+                           GtkWidget      *widget)
+{
+  GtkMultiDeviceData *data;
+  GtkDeviceGroup *old_group;
+
+  data = g_object_get_qdata (G_OBJECT (widget), quark_multidevice_data);
+
+  if (G_UNLIKELY (!data))
+    return;
+
+  /* Remove device from old group, if any */
+  old_group = g_hash_table_lookup (data->by_dev, device);
+
+  if (old_group)
+    gtk_device_group_remove_device (old_group, device);
+
+  g_hash_table_insert (data->by_dev,
+                       g_object_ref (device),
+                       g_object_ref (group));
+}
+
+static void
+device_group_device_removed (GtkDeviceGroup *group,
+                             GdkDevice      *device,
+                             GtkWidget      *widget)
+{
+  GtkMultiDeviceData *data;
+
+  data = g_object_get_qdata (G_OBJECT (widget), quark_multidevice_data);
+
+  g_assert (data != NULL);
+
+  g_hash_table_remove (data->by_dev, device);
+}
+
+static void
+free_multidevice_data (GtkMultiDeviceData *data)
+{
+  g_list_foreach (data->groups, (GFunc) g_object_unref, NULL);
+  g_list_free (data->groups);
+
+  g_hash_table_destroy (data->by_dev);
+
+  g_slice_free (GtkMultiDeviceData, data);
+}
+
+GtkDeviceGroup *
+gtk_widget_create_device_group (GtkWidget *widget)
+{
+  GtkMultiDeviceData *data;
+  GtkDeviceGroup *group;
+
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), NULL);
+
+  group = g_object_new (GTK_TYPE_DEVICE_GROUP, NULL);
+
+  g_signal_connect (group, "device-added",
+                    G_CALLBACK (device_group_device_added), widget);
+  g_signal_connect (group, "device-removed",
+                    G_CALLBACK (device_group_device_removed), widget);
+
+  data = g_object_get_qdata (G_OBJECT (widget), quark_multidevice_data);
+
+  if (G_UNLIKELY (!data))
+    {
+      data = g_slice_new0 (GtkMultiDeviceData);
+      data->by_dev = g_hash_table_new_full (g_direct_hash,
+                                            g_direct_equal,
+                                            (GDestroyNotify) g_object_unref,
+                                            (GDestroyNotify) g_object_unref);
+
+      g_object_set_qdata_full (G_OBJECT (widget),
+                               quark_multidevice_data,
+                               data,
+                               (GDestroyNotify) free_multidevice_data);
+    }
+
+  data->groups = g_list_prepend (data->groups, group);
+
+  return group;
+}
+
+void
+gtk_widget_remove_device_group (GtkWidget      *widget,
+                                GtkDeviceGroup *group)
+{
+  GtkMultiDeviceData *data;
+  GList *devices, *g;
+
+  g_return_if_fail (GTK_IS_WIDGET (widget));
+  g_return_if_fail (GTK_IS_DEVICE_GROUP (group));
+
+  data = g_object_get_qdata (G_OBJECT (widget), quark_multidevice_data);
+
+  if (G_UNLIKELY (!data))
+    return;
+
+  g = g_list_find (data->groups, group);
+
+  if (G_UNLIKELY (!g))
+    return;
+
+  devices = gtk_device_group_get_devices (group);
+
+  /* Free per-device data */
+  while (devices)
+    {
+      g_hash_table_remove (data->by_dev, devices->data);
+      devices = devices->next;
+    }
+
+  /* Free group */
+  data->groups = g_list_remove_link (data->groups, g);
+  g_object_unref (g->data);
+  g_list_free_1 (g);
+}
+
+GtkDeviceGroup *
+gtk_widget_get_group_for_device (GtkWidget *widget,
+                                 GdkDevice *device)
+{
+  GtkMultiDeviceData *data;
+  GtkDeviceGroup *group = NULL;
+
+  g_return_val_if_fail (GTK_IS_WIDGET (widget), NULL);
+  g_return_val_if_fail (GDK_IS_DEVICE (device), NULL);
+
+  data = g_object_get_qdata (G_OBJECT (widget), quark_multidevice_data);
+
+  if (!data)
+    return NULL;
+
+  group = g_hash_table_lookup (data->by_dev, device);
+
+  return group;
 }
 
 #define __GTK_WIDGET_C__
