@@ -128,6 +128,7 @@ enum {
   KEYNAV_FAILED,
   DRAG_FAILED,
   DAMAGE_EVENT,
+  MULTIDEVICE_EVENT,
   LAST_SIGNAL
 };
 
@@ -316,6 +317,7 @@ static GQuark		quark_mnemonic_labels = 0;
 static GQuark		quark_tooltip_markup = 0;
 static GQuark		quark_has_tooltip = 0;
 static GQuark		quark_tooltip_window = 0;
+static GQuark           quark_multidevice_events = 0;
 static GQuark           quark_multidevice_data = 0;
 GParamSpecPool         *_gtk_widget_child_property_pool = NULL;
 GObjectNotifyContext   *_gtk_widget_child_property_notify_context = NULL;
@@ -405,6 +407,7 @@ gtk_widget_class_init (GtkWidgetClass *klass)
   quark_tooltip_markup = g_quark_from_static_string ("gtk-tooltip-markup");
   quark_has_tooltip = g_quark_from_static_string ("gtk-has-tooltip");
   quark_tooltip_window = g_quark_from_static_string ("gtk-tooltip-window");
+  quark_multidevice_events = g_quark_from_static_string ("gtk-multidevice-events");
   quark_multidevice_data = g_quark_from_static_string ("gtk-multidevice-data");
 
   style_property_spec_pool = g_param_spec_pool_new (FALSE);
@@ -2192,6 +2195,15 @@ gtk_widget_class_init (GtkWidgetClass *klass)
                   _gtk_boolean_handled_accumulator, NULL,
 		  _gtk_marshal_BOOLEAN__UINT,
                   G_TYPE_BOOLEAN, 1, G_TYPE_UINT);
+
+  widget_signals[MULTIDEVICE_EVENT] =
+    g_signal_new (I_("multidevice-event"),
+                  G_TYPE_FROM_CLASS (gobject_class),
+                  G_SIGNAL_RUN_LAST,
+                  0, NULL, NULL,
+                  _gtk_marshal_VOID__OBJECT_POINTER,
+                  G_TYPE_NONE, 2,
+                  GTK_TYPE_DEVICE_GROUP, G_TYPE_POINTER);
 
   binding_set = gtk_binding_set_by_class (klass);
   gtk_binding_entry_add_signal (binding_set, GDK_F10, GDK_SHIFT_MASK,
@@ -4646,6 +4658,84 @@ event_window_is_still_viewable (GdkEvent *event)
     }
 }
 
+static void
+compose_multidevice_event (GtkWidget               *widget,
+                           GdkDevice               *device,
+                           GdkEventMotion          *new_event)
+{
+  GHashTable *multidevice_events;
+  GtkMultiDeviceEventType type;
+  GtkDeviceGroup *group;
+  GtkMultiDeviceData *data;
+  GtkMultiDeviceEvent event;
+  GdkEvent *updated_event;
+  GList *devices;
+  gint i = 0;
+
+  data = g_object_get_qdata ((GObject *) widget,
+                             quark_multidevice_data);
+  if (!data)
+    return;
+
+  group = g_hash_table_lookup (data->by_dev, device);
+
+  if (!group)
+    return;
+
+  multidevice_events = g_object_get_qdata ((GObject *) widget,
+                                           quark_multidevice_events);
+
+  if (G_UNLIKELY (!multidevice_events))
+    {
+      multidevice_events = g_hash_table_new_full (g_direct_hash,
+                                                   g_direct_equal,
+                                                   (GDestroyNotify) g_object_unref,
+                                                   (GDestroyNotify) gdk_event_free);
+      g_object_set_qdata_full ((GObject *) widget,
+                               quark_multidevice_events,
+			       multidevice_events,
+                               (GDestroyNotify) g_hash_table_destroy);
+    }
+
+  if (!new_event)
+    {
+      g_hash_table_remove (multidevice_events, device);
+      type = GTK_EVENT_DEVICE_REMOVED;
+      updated_event = NULL;
+    }
+  else
+    {
+      if (g_hash_table_lookup (multidevice_events, device) == NULL)
+        type = GTK_EVENT_DEVICE_ADDED;
+      else
+        type = GTK_EVENT_DEVICE_UPDATED;
+
+      updated_event = gdk_event_copy ((GdkEvent *) new_event);
+
+      g_hash_table_insert (multidevice_events,
+                           g_object_ref (device),
+                           updated_event);
+    }
+
+  devices = gtk_device_group_get_devices (group);
+
+  /* Compose event */
+  event.type = type;
+  event.n_events = g_list_length (devices);
+  event.events = g_new0 (GdkEventMotion *, event.n_events);
+  event.updated_event = (GdkEventMotion *) updated_event;
+
+  while (devices)
+    {
+      event.events[i] = g_hash_table_lookup (multidevice_events, devices->data);
+      devices = devices->next;
+      i++;
+    }
+
+  g_signal_emit (widget, widget_signals[MULTIDEVICE_EVENT], 0, group, &event);
+  g_free (event.events);
+}
+
 static gint
 gtk_widget_event_internal (GtkWidget *widget,
 			   GdkEvent  *event)
@@ -4768,6 +4858,15 @@ gtk_widget_event_internal (GtkWidget *widget,
 	}
       if (signal_num != -1)
 	g_signal_emit (widget, widget_signals[signal_num], 0, event, &return_val);
+
+      if (event->type == GDK_MOTION_NOTIFY &&
+          (GTK_WIDGET_FLAGS (widget) & GTK_MULTIDEVICE) != 0)
+        {
+          GdkEventMotion *event_motion;
+
+          event_motion = (GdkEventMotion *) event;
+          compose_multidevice_event (widget, event_motion->device, event_motion);
+        }
     }
   if (WIDGET_REALIZED_FOR_EVENT (widget, event))
     g_signal_emit (widget, widget_signals[EVENT_AFTER], 0, event);

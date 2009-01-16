@@ -148,6 +148,7 @@ typedef struct _GtkWidgetShapeInfo GtkWidgetShapeInfo;
 typedef struct _GtkClipboard	   GtkClipboard;
 typedef struct _GtkTooltip         GtkTooltip;
 typedef struct _GtkWindow          GtkWindow;
+typedef struct _GtkMultiDeviceEvent GtkMultiDeviceEvent;
 typedef void     (*GtkCallback)        (GtkWidget        *widget,
 					gpointer	  data);
 
@@ -431,6 +432,21 @@ struct _GtkWidgetClass
   void (*_gtk_reserved5) (void);
   void (*_gtk_reserved6) (void);
   void (*_gtk_reserved7) (void);
+};
+
+typedef enum
+{
+  GTK_EVENT_DEVICE_ADDED,
+  GTK_EVENT_DEVICE_REMOVED,
+  GTK_EVENT_DEVICE_UPDATED
+} GtkMultiDeviceEventType;
+
+struct _GtkMultiDeviceEvent
+{
+  GtkMultiDeviceEventType type;
+  guint n_events;
+  GdkEventMotion **events;
+  GdkEventMotion *updated_event;
 };
 
 struct _GtkWidgetAuxInfo
