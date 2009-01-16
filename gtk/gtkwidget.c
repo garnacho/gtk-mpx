@@ -10380,6 +10380,58 @@ gtk_widget_set_support_multidevice (GtkWidget *widget,
     }
 }
 
+static GdkEventMotion *
+convert_event_to_motion (GdkEvent *event)
+{
+  GdkEventMotion *new_event;
+
+  new_event = gdk_event_new (GDK_MOTION_NOTIFY);
+
+  switch (event->type)
+    {
+    case GDK_BUTTON_PRESS:
+    case GDK_2BUTTON_PRESS:
+    case GDK_3BUTTON_PRESS:
+    case GDK_BUTTON_RELEASE:
+      new_event->window = g_object_ref (event->button.window);
+      new_event->send_event = TRUE;
+      new_event->time = event->button.time;
+      new_event->x = event->button.x;
+      new_event->y = event->button.y;
+
+      if (event->button.axes)
+	new_event->axes = g_memdup (event->button.axes,
+                                    sizeof (gdouble) * event->button.device->num_axes);
+
+      new_event->state = 0; /* FIXME */
+      new_event->is_hint = FALSE;
+      new_event->device = g_object_ref (event->button.device);
+      new_event->x_root = event->button.x_root;
+      new_event->y_root = event->button.y_root;
+      break;
+    case GDK_ENTER_NOTIFY:
+    case GDK_LEAVE_NOTIFY:
+      new_event->window = g_object_ref (event->crossing.window);
+      new_event->send_event = TRUE;
+      new_event->time = event->crossing.time;
+      new_event->x = event->crossing.x;
+      new_event->y = event->crossing.y;
+      new_event->axes = NULL; /* FIXME: not ideal for non-mice */
+      new_event->state = 0; /* FIXME */
+      new_event->is_hint = FALSE;
+      new_event->device = g_object_ref (event->crossing.device);
+      new_event->x_root = event->crossing.x_root;
+      new_event->y_root = event->crossing.y_root;
+      break;
+    default:
+      g_warning ("Event with type %d can not be transformed to GdkEventMotion", event->type);
+      gdk_event_free ((GdkEvent *) new_event);
+      new_event = NULL;
+    }
+
+  return new_event;
+}
+
 static void
 device_group_device_added (GtkDeviceGroup *group,
                            GdkDevice      *device,
@@ -10387,6 +10439,9 @@ device_group_device_added (GtkDeviceGroup *group,
 {
   GtkMultiDeviceData *data;
   GtkDeviceGroup *old_group;
+  GdkEventMotion *new_event = NULL;
+  GtkWidget *event_widget;
+  GdkEvent *event;
 
   data = g_object_get_qdata (G_OBJECT (widget), quark_multidevice_data);
 
@@ -10402,6 +10457,29 @@ device_group_device_added (GtkDeviceGroup *group,
   g_hash_table_insert (data->by_dev,
                        g_object_ref (device),
                        g_object_ref (group));
+
+  event = gtk_get_current_event ();
+
+  if (!event)
+    return;
+
+  if (event->type == GDK_MOTION_NOTIFY)
+    new_event = (GdkEventMotion *) event;
+  else
+    {
+      event_widget = gtk_get_event_widget (event);
+
+      if (widget == event_widget)
+        new_event = convert_event_to_motion (event);
+
+      gdk_event_free (event);
+    }
+
+  if (new_event)
+    {
+      gtk_widget_event_internal (widget, (GdkEvent *) new_event);
+      gdk_event_free ((GdkEvent *) new_event);
+    }
 }
 
 static void
@@ -10415,6 +10493,7 @@ device_group_device_removed (GtkDeviceGroup *group,
 
   g_assert (data != NULL);
 
+  compose_multidevice_event (widget, device, NULL);
   g_hash_table_remove (data->by_dev, device);
 }
 
