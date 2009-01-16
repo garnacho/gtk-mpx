@@ -239,6 +239,83 @@ _gdk_input_disable_window(GdkWindow *window, GdkDevicePrivate *gdkdev)
   return TRUE;
 }
 
+gint
+_gdk_input_grab_device (GdkDevice    *device,
+                        GdkWindow    *window,
+                        gint          owner_events,
+                        GdkEventMask  event_mask,
+                        GdkWindow    *confine_to,
+                        GdkCursor    *cursor,
+                        guint32       time)
+{
+  GdkDisplayX11 *display_impl;
+  GdkDevicePrivate *gdkdev;
+  XEventClass event_classes[GDK_MAX_DEVICE_CLASSES];
+  gint result, num_classes;
+
+  display_impl = GDK_DISPLAY_X11 (GDK_WINDOW_DISPLAY (window));
+  gdkdev = (GdkDevicePrivate *) device;
+
+  _gdk_input_common_find_events (window, gdkdev,
+                                 event_mask,
+                                 event_classes, &num_classes);
+#ifdef G_ENABLE_DEBUG
+  if (_gdk_debug_flags & GDK_DEBUG_NOGRABS)
+    result = GrabSuccess;
+  else
+#endif
+#ifdef XINPUT_2
+    {
+      GdkCursorPrivate *cursor_private;
+      Window xconfine_to;
+      Cursor xcursor;
+
+      cursor_private = (GdkCursorPrivate*) cursor;
+
+      if (!confine_to || GDK_WINDOW_DESTROYED (confine_to))
+        xconfine_to = None;
+      else
+        xconfine_to = GDK_WINDOW_XID (confine_to);
+
+      if (!cursor)
+        xcursor = None;
+      else
+        {
+          _gdk_x11_cursor_update_theme (cursor);
+          xcursor = cursor_private->xcursor;
+        }
+
+      result = XExtendedGrabDevice (display_impl->xdisplay,
+                                    gdkdev->xdevice,
+                                    GDK_WINDOW_XWINDOW (window),
+                                    GrabModeAsync,
+                                    owner_events,
+                                    xconfine_to,
+                                    xcursor,
+                                    num_classes, event_classes,
+                                    0, NULL);
+    }
+#else
+    result = XGrabDevice (display_impl->xdisplay, gdkdev->xdevice,
+                          GDK_WINDOW_XWINDOW (window),
+                          owner_events, num_classes, event_classes,
+                          GrabModeAsync, GrabModeAsync, time);
+#endif
+
+  return result;
+}
+
+void
+_gdk_input_ungrab_device (GdkDisplay *display,
+                          GdkDevice  *device,
+                          guint32     time)
+{
+  GdkDisplayX11 *display_impl = GDK_DISPLAY_X11 (display);
+  GdkDevicePrivate *gdkdev = (GdkDevicePrivate *) device;
+
+  XUngrabDevice (display_impl->xdisplay, gdkdev->xdevice, time);
+}
+
 gint 
 _gdk_input_grab_pointer (GdkWindow *     window,
 			 gint            owner_events,
@@ -250,10 +327,9 @@ _gdk_input_grab_pointer (GdkWindow *     window,
   gboolean need_ungrab;
   GdkDevicePrivate *gdkdev;
   GList *tmp_list;
-  XEventClass event_classes[GDK_MAX_DEVICE_CLASSES];
-  gint num_classes;
   gint result;
-  GdkDisplayX11 *display_impl  = GDK_DISPLAY_X11 (GDK_WINDOW_DISPLAY (window));
+  GdkDisplay *display = GDK_WINDOW_DISPLAY (window);
+  GdkDisplayX11 *display_impl  = GDK_DISPLAY_X11 (display);
 
   tmp_list = display_impl->input_windows;
   new_window = NULL;
@@ -284,19 +360,12 @@ _gdk_input_grab_pointer (GdkWindow *     window,
 	  gdkdev = (GdkDevicePrivate *)tmp_list->data;
 	  if (!GDK_IS_CORE (gdkdev) && gdkdev->xdevice)
 	    {
-	      _gdk_input_common_find_events (window, gdkdev,
-					     event_mask,
-					     event_classes, &num_classes);
-#ifdef G_ENABLE_DEBUG
-	      if (_gdk_debug_flags & GDK_DEBUG_NOGRABS)
-		result = GrabSuccess;
-	      else
-#endif
-		result = XGrabDevice (display_impl->xdisplay, gdkdev->xdevice,
-				      GDK_WINDOW_XWINDOW (window),
-				      owner_events, num_classes, event_classes,
-				      GrabModeAsync, GrabModeAsync, time);
-	      
+              result = _gdk_input_grab_device ((GdkDevice *) gdkdev,
+                                               window,
+                                               owner_events, event_mask,
+                                               confine_to, NULL,
+                                               time);
+
 	      /* FIXME: if failure occurs on something other than the first
 		 device, things will be badly inconsistent */
 	      if (result != Success)
@@ -314,7 +383,7 @@ _gdk_input_grab_pointer (GdkWindow *     window,
 	  if (!GDK_IS_CORE (gdkdev) && gdkdev->xdevice &&
 	      ((gdkdev->button_state != 0) || need_ungrab))
 	    {
-	      XUngrabDevice (display_impl->xdisplay, gdkdev->xdevice, time);
+              _gdk_input_ungrab_device (display, &gdkdev->info, time);
 	      gdkdev->button_state = 0;
 	    }
 	  
@@ -353,7 +422,7 @@ _gdk_input_ungrab_pointer (GdkDisplay *display,
 	{
 	  gdkdev = (GdkDevicePrivate *)tmp_list->data;
 	  if (!GDK_IS_CORE (gdkdev) && gdkdev->xdevice)
-	    XUngrabDevice( display_impl->xdisplay, gdkdev->xdevice, time);
+            _gdk_input_ungrab_device (display, &gdkdev->info, time);
 
 	  tmp_list = tmp_list->next;
 	}

@@ -152,6 +152,16 @@ gboolean         _gdk_input_other_event      (GdkEvent         *event,
 					      XEvent           *xevent,
                                               GdkDisplay       *display,
 					      GdkWindow        *window);
+gint             _gdk_input_grab_device      (GdkDevice        *device,
+                                              GdkWindow        *window,
+					      gint              owner_events,
+					      GdkEventMask      event_mask,
+					      GdkWindow        *confine_to,
+                                              GdkCursor        *cursor,
+					      guint32           time);
+void             _gdk_input_ungrab_device    (GdkDisplay       *display,
+                                              GdkDevice        *device,
+                                              guint32           time);
 gint             _gdk_input_grab_pointer     (GdkWindow        *window,
 					      gint              owner_events,
 					      GdkEventMask      event_mask,
