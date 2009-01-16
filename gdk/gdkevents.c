@@ -26,6 +26,7 @@
 
 #include "config.h"
 #include <string.h>		/* For memset() */
+#include <math.h>
 
 #include "gdk.h"
 #include "gdkinternals.h"
@@ -887,6 +888,95 @@ gdk_event_request_motions (const GdkEventMotion *event)
   g_return_if_fail (event != NULL);
   if (event->type == GDK_MOTION_NOTIFY && event->is_hint)
     gdk_device_get_state (event->device, event->window, NULL, NULL);
+}
+
+static gboolean
+gdk_events_get_axis_distances (GdkEvent *event1,
+                               GdkEvent *event2,
+                               gdouble  *x_distance,
+                               gdouble  *y_distance,
+                               gdouble  *distance)
+{
+  gdouble x1, x2, y1, y2;
+  gdouble xd, yd;
+
+  if (!gdk_event_get_coords (event1, &x1, &y1) ||
+      !gdk_event_get_coords (event2, &x2, &y2))
+    return FALSE;
+
+  xd = x2 - x1;
+  yd = y2 - y1;
+
+  if (x_distance)
+    *x_distance = xd;
+
+  if (y_distance)
+    *y_distance = yd;
+
+  if (distance)
+    *distance = sqrt ((xd * xd) + (yd * yd));
+
+  return TRUE;
+}
+
+gboolean
+gdk_events_get_distance (GdkEvent *event1,
+                         GdkEvent *event2,
+                         gdouble  *distance)
+{
+  return gdk_events_get_axis_distances (event1, event2,
+                                        NULL, NULL,
+                                        distance);
+}
+
+gboolean
+gdk_events_get_angle (GdkEvent *event1,
+                      GdkEvent *event2,
+                      gdouble  *angle)
+{
+  gdouble x_distance, y_distance, distance;
+
+  if (!gdk_events_get_axis_distances (event1, event2,
+                                      &x_distance, &y_distance,
+                                      &distance))
+    return FALSE;
+
+  if (angle)
+    {
+      *angle = atan2 (x_distance, y_distance);
+
+      /* Invert angle */
+      *angle = (2 * G_PI) - *angle;
+
+      /* Shift it 90° */
+      *angle += G_PI / 2;
+
+      /* And constraint it to 0°-360° */
+      *angle = fmod (*angle, 2 * G_PI);
+    }
+
+  return TRUE;
+}
+
+gboolean
+gdk_events_get_center (GdkEvent *event1,
+                       GdkEvent *event2,
+                       gdouble  *x,
+                       gdouble  *y)
+{
+  gdouble x1, x2, y1, y2;
+
+  if (!gdk_event_get_coords (event1, &x1, &y1) ||
+      !gdk_event_get_coords (event2, &x2, &y2))
+    return FALSE;
+
+  if (x)
+    *x = (x2 + x1) / 2;
+
+  if (y)
+    *y = (y2 + y1) / 2;
+
+  return TRUE;
 }
 
 /**

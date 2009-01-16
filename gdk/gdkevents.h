@@ -539,6 +539,18 @@ gboolean  gdk_event_get_axis            (const GdkEvent  *event,
                                          GdkAxisUse       axis_use,
                                          gdouble         *value);
 void      gdk_event_request_motions     (const GdkEventMotion *event);
+
+gboolean  gdk_events_get_distance       (GdkEvent        *event1,
+                                         GdkEvent        *event2,
+                                         gdouble         *distance);
+gboolean  gdk_events_get_angle          (GdkEvent        *event1,
+                                         GdkEvent        *event2,
+                                         gdouble         *angle);
+gboolean  gdk_events_get_center         (GdkEvent        *event1,
+                                         GdkEvent        *event2,
+                                         gdouble         *x,
+                                         gdouble         *y);
+
 void	  gdk_event_handler_set 	(GdkEventFunc    func,
 					 gpointer        data,
 					 GDestroyNotify  notify);
