@@ -85,9 +85,10 @@ _gdk_input_disable_window(GdkWindow *window, GdkDevicePrivate *gdkdev)
 }
 
 gboolean
-_gdk_input_other_event (GdkEvent *event, 
-			XEvent *xevent, 
-			GdkWindow *window)
+_gdk_input_other_event (GdkEvent   *event,
+			XEvent     *xevent,
+                        GdkDisplay *display,
+			GdkWindow  *window)
 {
   return FALSE;
 }
